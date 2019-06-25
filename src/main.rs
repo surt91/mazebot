@@ -20,6 +20,33 @@ struct Maze {
     map: Vec<Vec<char>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug)]
+struct Pair {
+    key: i32,
+    value: usize
+}
+
+impl Ord for Pair {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.key.cmp(&other.key)
+    }
+}
+
+impl PartialOrd for Pair {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Pair {
+    fn new(key: i32, value: usize) -> Pair {
+        Pair {
+            key,
+            value,
+        }
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 struct Node {
     pos: [i32; 2],
@@ -29,18 +56,6 @@ struct Node {
     h: i32, // shortest possible additional distance
     best_pred: usize,
     direction: char,
-}
-
-impl Ord for Node {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.f().cmp(&other.f())
-    }
-}
-
-impl PartialOrd for Node {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 impl Node {
@@ -124,10 +139,10 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
     let start = Node::from_pos(maze.ending_position, x, y);
     let end = Node::from_pos(maze.starting_position, x, y);
 
-    open_list.push(start.id());
+    open_list.push(Pair::new(start.f(), start.id()));
 
     while !open_list.is_empty() {
-        let c_idx = open_list.pop().unwrap();
+        let c_idx = open_list.pop().unwrap().value;
         if closed_list.contains(&c_idx) {
             continue
         }
@@ -145,7 +160,6 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
             return path
         }
         closed_list.insert(c_idx);
-        let g = current.g;
         for (direction, [dx, dy]) in &[('N', [0,1]), ('W', [1,0]), ('E', [-1,0]), ('S', [0,-1])] {
             let nx = current.x()+dx;
             let ny = current.y()+dy;
@@ -160,14 +174,14 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
             let neighbor_idx = (nx + ny * x) as usize;
             if closed_list.contains(&neighbor_idx) {
                 continue
-            } else if nodes[neighbor_idx].g > g+1 || nodes[neighbor_idx].g < 0 {
+            } else if nodes[neighbor_idx].g > current.g+1 || nodes[neighbor_idx].g < 0 {
                 nodes[neighbor_idx].best_pred = current.id();
                 nodes[neighbor_idx].direction = *direction;
-                nodes[neighbor_idx].g = g+1;
+                nodes[neighbor_idx].g = current.g+1;
                 nodes[neighbor_idx].h = calculate_shortest_possible(end.pos, nodes[neighbor_idx].pos);
                 // we cannot update next, but the old one will directly be aborted,
                 // since it will be in the closed list
-                open_list.push(neighbor_idx);
+                open_list.push(Pair::new(nodes[neighbor_idx].f(), neighbor_idx));
             }
         }
     }
@@ -217,7 +231,7 @@ fn main() {
     let maze = get_random_maze().unwrap();
     let solution = solve_maze(&maze);
     send_maze_solution(&maze.maze_path, &solution);
-    println!("{:?}", solution);
-    show_maze(&maze);
-    show_maze_with_tour(&maze, &solution);
+    // println!("{:?}", solution);
+    // show_maze(&maze);
+    // show_maze_with_tour(&maze, &solution);
 }
