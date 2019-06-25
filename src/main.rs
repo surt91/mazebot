@@ -20,6 +20,35 @@ struct Maze {
     map: Vec<Vec<char>>,
 }
 
+#[derive(Deserialize, Debug)]
+struct MazeResult {
+    result: String,
+    message: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct RaceStart {
+    #[serde(rename = "nextMaze")]
+    maze_path: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct RaceResult {
+    #[serde(rename = "nextMaze", default)]
+    maze_path: String,
+    result: String,
+    #[serde(default)]
+    elapsed: f64,
+    #[serde(rename = "shortestSolutionLength", default)]
+    shortest_solution: i32,
+    #[serde(rename = "yourSolutionLength", default)]
+    my_solution: i32,
+    #[serde(default)]
+    message: String,
+    #[serde(default)]
+    certificate: String,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct Pair {
     key: i32,
@@ -107,17 +136,18 @@ fn get_random_maze() -> Result<Maze, reqwest::Error> {
     Ok(maze)
 }
 
-fn send_maze_solution(path: &String, solution: &Vec<char>) {
+fn send_maze_solution(path: &String, solution: &Vec<char>) -> Result<MazeResult, reqwest::Error> {
 
     let mut map = HashMap::new();
     map.insert("directions", solution.iter().collect::<String>());
 
     let url = format!("https://api.noopschallenge.com{}", path);
     let client = reqwest::Client::new();
-    let response = client.post(&url)
+    let mut response = client.post(&url)
         .json(&map)
-        .send();
-    println!("{:?}", response.unwrap().text());
+        .send()?;
+
+    Ok(response.json()?)
 }
 
 fn calculate_shortest_possible(s: [i32; 2], t: [i32; 2]) -> i32 {
@@ -227,10 +257,71 @@ fn show_maze_with_tour(maze: &Maze, tour: &Vec<char>) {
     print!("\n\n");
 }
 
+fn start_race() -> Result<RaceStart, reqwest::Error> {
+    let mut map = HashMap::new();
+    map.insert("login", "surt91");
+
+    let client = reqwest::Client::new();
+    let mut response = client.post("https://api.noopschallenge.com/mazebot/race/start")
+        .json(&map)
+        .send()?;
+
+    Ok(response.json()?)
+}
+
+fn get_race_maze(path: &String) -> Result<Maze, reqwest::Error> {
+    let url = format!("https://api.noopschallenge.com{}", path);
+
+    let mut response = reqwest::get(&url);
+
+    Ok(response?.json()?)
+}
+
+fn get_certificate(path: &String) -> Result<Maze, reqwest::Error> {
+    let url = format!("https://api.noopschallenge.com{}", path);
+
+    let mut response = reqwest::get(&url);
+
+    Ok(response?.json()?)
+}
+
+fn send_race_solution(path: &String, solution: &Vec<char>) -> Result<RaceResult, reqwest::Error> {
+
+    let mut map = HashMap::new();
+    map.insert("directions", solution.iter().collect::<String>());
+
+    let url = format!("https://api.noopschallenge.com{}", path);
+    let client = reqwest::Client::new();
+    let mut response = client.post(&url)
+        .json(&map)
+        .send()?;
+
+    Ok(response.json()?)
+}
+
+fn race() -> Result<(), reqwest::Error> {
+    let mut next = start_race()?.maze_path;
+    println!("Start the race");
+
+    loop {
+        let maze = get_race_maze(&next)?;
+        println!("{}", maze.name);
+        let solution = solve_maze(&maze);
+        let result = send_race_solution(&next, &solution)?;
+        next = result.maze_path;
+        if result.result == "finished" {
+            println!("{} ({})", result.message, result.certificate);
+        } else {
+            println!("{} ({}/{})", result.result, result.my_solution, result.shortest_solution);
+        }
+    }
+}
+
 fn main() {
-    let maze = get_random_maze().unwrap();
-    let solution = solve_maze(&maze);
-    send_maze_solution(&maze.maze_path, &solution);
+    race();
+    // let maze = get_random_maze().unwrap();
+    // let solution = solve_maze(&maze);
+    // send_maze_solution(&maze.maze_path, &solution);
     // println!("{:?}", solution);
     // show_maze(&maze);
     // show_maze_with_tour(&maze, &solution);
