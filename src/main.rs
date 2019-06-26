@@ -162,12 +162,13 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
 
     let mut open_list = BinaryHeap::new();
     let mut closed_list: HashSet<usize> = HashSet::new();
-    let mut nodes: Vec<Node> = (0..(x*y)).map(|i| Node::new(i, x, y)).collect();
+    let mut nodes: HashMap<usize, Node> = HashMap::new();
 
     // we will search the start from the end
     // such that we do not need to reverse the directions
     let start = Node::from_pos(maze.ending_position, x, y);
     let end = Node::from_pos(maze.starting_position, x, y);
+    nodes.insert(start.id(), start.clone());
 
     open_list.push(Pair::new(start.f(), start.id()));
 
@@ -176,7 +177,7 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
         if closed_list.contains(&c_idx) {
             continue
         }
-        let current = nodes[c_idx].clone();
+        let current = nodes[&c_idx].clone();
 
         // if we reached the target, we are finished
         if current.pos == end.pos {
@@ -185,7 +186,7 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
             let mut b = current.clone();
             while b.pos != start.pos {
                 path.push(b.direction);
-                b = nodes[b.best_pred].clone();
+                b = nodes[&b.best_pred].clone();
             }
             return path
         }
@@ -202,16 +203,17 @@ fn solve_maze(maze: &Maze) -> Vec<char> {
                 continue
             }
             let neighbor_idx = (nx + ny * x) as usize;
+            let neighbor = nodes.entry(neighbor_idx).or_insert_with(|| Node::new(neighbor_idx as i32, x, y));
             if closed_list.contains(&neighbor_idx) {
                 continue
-            } else if nodes[neighbor_idx].g > current.g+1 || nodes[neighbor_idx].g < 0 {
-                nodes[neighbor_idx].best_pred = current.id();
-                nodes[neighbor_idx].direction = *direction;
-                nodes[neighbor_idx].g = current.g+1;
-                nodes[neighbor_idx].h = calculate_shortest_possible(end.pos, nodes[neighbor_idx].pos);
+            } else if neighbor.g > current.g+1 || neighbor.g < 0 {
+                neighbor.best_pred = current.id();
+                neighbor.direction = *direction;
+                neighbor.g = current.g+1;
+                neighbor.h = calculate_shortest_possible(end.pos, neighbor.pos);
                 // we cannot update next, but the old one will directly be aborted,
                 // since it will be in the closed list
-                open_list.push(Pair::new(nodes[neighbor_idx].f(), neighbor_idx));
+                open_list.push(Pair::new(neighbor.f(), neighbor_idx));
             }
         }
     }
