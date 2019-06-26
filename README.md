@@ -1,3 +1,5 @@
+![Badge](https://img.shields.io/badge/dynamic/json.svg?color=success&label=Race&query=%24.elapsed&url=http%3A%2F%2Fapi.noopschallenge.com%2Fmazebot%2Frace%2Fcertificate%2FwXFPE_8viB4UZoeK5k0neTw4Urgo8li2hznp2GO-h20&suffix=s)
+
 ![Mazebot animation](https://user-images.githubusercontent.com/212941/59631813-9ad09f80-90fd-11e9-8556-810c48531558.gif)
 
 # 👋 Meet Mazebot
